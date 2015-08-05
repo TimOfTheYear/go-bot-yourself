@@ -69,13 +69,13 @@ function learnFromUser(username, onComplete) {
                 var tweets = [];
 
                 console.log("Tweets returned: ", data.length);
-                var markovChain = new MarkovChain();
+                var markovChain = new MarkovChain(1);
 
                 for(var i = 0; i < data.length; i++) {
                     markovChain.learnFromSource(data[i].text);
                 }
 
-                console.log("Learning Complete, Markov Chain: ", markovChain);
+                console.log("Learning Complete.");
 
                 onComplete(markovChain);
             } else {
