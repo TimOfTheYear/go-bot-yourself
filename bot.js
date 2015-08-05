@@ -4,11 +4,52 @@ var Twit = require('twit');
 // We need to include our configuration file
 var T = new Twit(require('./config.js'));
 
+// Include fs lib for caching to file system
+var fs = require('fs');
+
 // This will be our Markov Chain prototype
 var MarkovChain = require('./markov.js');
 
 // Last tweet we responded too, only want mentions since then.
 var lastResponded;
+
+/**
+ * Restores cache info, if any exists, and begins the server loop.
+ */
+function startup() {
+    fs.readFile('./cache/lastResponded.txt', { encoding: 'utf8' }, function(err, data) {
+        if(!err) {
+            lastResponded = data;
+            console.log('Cache Initialized. Last Responded: ', lastResponded);
+        } else {
+            console.log('No Existing Cache Found: ', lastResponded);
+        }
+
+        // Check for requests immediately upon startup.
+        checkForRequests();
+
+        // Twitter allows for 15 statuses/mentions_timeline requests per 15 minutes
+        // 1000 ms = 1 second, 1 sec * 60 = 1 min, 1 min * 60 = 1 hour --> 1000 * 60 * 60
+        setInterval(checkForRequests, 1000 * 60);
+    });
+}
+
+/**
+ * Caches app data to disk so state can be restored if bot is stopped/started.
+ */
+function updateCache() {
+    fs.writeFile('./cache/lastResponded.txt', lastResponded, { encoding: 'utf8' }, function (err) {
+        if (err) {
+            console.log('Error: ', err);
+            if(err.errno == -2) {
+                fs.mkdir('./cache', function(err) {
+                    if(!err) updateCache();
+                });
+            }
+        }
+        else console.log('Cache updated.');
+    });
+}
 
 /**
  * Fetches a user's timeline, then constructs a Markov chain from
@@ -31,7 +72,7 @@ function learnFromUser(username, onComplete) {
                     markovChain.learnFromSource(data[i].text);
                 }
 
-                console.log("Learning Complete, Markov Chain: ", markovChain);
+                console.log("Learning Complete");
 
                 onComplete(markovChain);
             } else {
@@ -47,7 +88,7 @@ function learnFromUser(username, onComplete) {
 function checkForRequests() {
     var params = {};
 
-    if(typeof lastResponded != 'undefined') {
+    if(typeof lastResponded == 'string') {
         params.since_id = lastResponded;
     }
 
@@ -59,7 +100,9 @@ function checkForRequests() {
                     T.post("statuses/update", { status:'"' + chain.generateString(120) + '" - @' + data[0].user.screen_name,
                         in_reply_to_status_id: data[0].id_str }, function(error, body, response) {
                             if(!error) {
+                                console.log("Tweet sent");
                                 lastResponded = data[0].id_str;
+                                updateCache();
                             } else {
                                 console.log("Error: ", error);
                             }
@@ -74,9 +117,5 @@ function checkForRequests() {
     })
 }
 
-// Check for requests immediately upon startup.
-checkForRequests();
-
-// Twitter allows for 15 statuses/mentions_timeline requests per 15 minutes
-// 1000 ms = 1 second, 1 sec * 60 = 1 min, 1 min * 60 = 1 hour --> 1000 * 60 * 60
-setInterval(checkForRequests, 1000 * 60);
+// Startup the bot.
+startup();
