@@ -32,6 +32,12 @@ function processPunctuation(words) {
     return words;
 }
 
+/**
+ * Breaks down the provided source string based on prefix length the
+ * MarkovChain was initialized with and seeds the chain.
+ *
+ * @param source - String representing a piece of source material.
+ */
 MarkovChain.prototype.learnFromSource = function(source) {
     var pieces = processPunctuation(source.split(" "));
     var prefix = "";
@@ -61,6 +67,12 @@ MarkovChain.prototype.learnFromSource = function(source) {
     }
 }
 
+/**
+ * Generates a string of some length less than or equal to the supplied target
+ * length based on whatever is currently populating the chain structure.
+ *
+ * @param targetLength - Max length for the generated string.
+ */
 MarkovChain.prototype.generateString = function(targetLength) {
     var string = "";
     var prefix = "";
